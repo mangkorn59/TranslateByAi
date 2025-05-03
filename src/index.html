@@ -1,0 +1,418 @@
+<script src="script/callAi.js"></script>
+<script src="script/deepseek-v3.js"></script>
+<script src="script/generateDoc.js"></script>
+<script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@7.0.1/build/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <title>แสดงไฟล์ Word ที่อัปโหลด</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f8;
+      padding: 20px;
+    }
+
+    h2 {
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .file-upload-container {
+      background-color: #fff;
+      border: 2px dashed #007bff;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      transition: border-color 0.3s;
+    }
+
+    .file-upload-container:hover {
+      border-color: #0056b3;
+    }
+
+    input[type="file"] {
+      font-size: 16px;
+      margin-top: 15px;
+      cursor: pointer;
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    textarea {
+      width: 100%;
+      height: 120px;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+
+    #apiKey {
+      width: 100%;
+      height: 40px;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-bottom: 20px;
+      box-sizing: border-box;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #0060c7;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+      background-color: white;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    th,
+    td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+
+    .file-name {
+      padding: 5px 10px;
+      background-color: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    /* Spinner Overlay */
+    #spinner-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      /* พื้นหลังโปร่งแสง */
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .spinner-box {
+      background: white;
+      padding: 20px 40px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+      font-family: sans-serif;
+    }
+
+    .loader {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px auto;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .dragFullScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.61);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      display: none;
+    }
+
+    .flex-center-container {
+      border: 5px dashed #f3f3f370;
+      border-radius: 20px;
+      width: 95%;
+      height: 95%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #4e4e4e1a;
+    }
+
+    .text {
+      color: #ffffffd8;
+      font-size: 100px;
+      text-shadow: 2px 5px 10px #303030d3;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="dragFullScreen" id="dragFullScreen">
+    <div class="flex-center-container">
+      <div class="text">
+        Drag & drop Word file here
+      </div>
+    </div>
+  </div>
+
+  <div id="spinner-overlay" style="display: none;">
+    <div class="spinner-box">
+      <div class="loader"></div>
+      <div>กำลังโหลด...</div>
+    </div>
+  </div>
+
+  <h2>อัปโหลดไฟล์ Word (.doc, .docx)</h2>
+  <div class="file-upload-container">
+    <p>ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</p>
+    <input type="file" id="wordFiles" multiple />
+  </div>
+
+  <h2>Prompt</h2>
+  <textarea id="prompt"></textarea>
+
+  <h2>API Key</h2>
+  <input type="text" id="apiKey" placeholder="Enter your API key">
+
+  <button onclick="sendProcessToAi()">Submit</button>
+  <!-- <button onclick="test()">test</button> -->
+  <!-- <button onclick="createContentByDeepSeek()">test</button> -->
+
+  <table>
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>File name</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="fileList">
+      <!-- รายการไฟล์จะถูกเพิ่มที่นี่โดย JavaScript -->
+    </tbody>
+  </table>
+
+  <script>
+    const input = document.getElementById('wordFiles');
+    const fileList = document.getElementById('fileList');
+    const dragFullScreen = document.getElementById('dragFullScreen');
+    const apiKey = document.getElementById('apiKey');
+    document.getElementById('prompt').value = "แปลภาษาไทยเป็นภาษาอังกฤษ โดยเนื้อที่ให้มาจะมีแค่เนื้อหาที่แปลเท่านั้น\n";
+    let prompt = document.getElementById('prompt');
+    // ตัวแปรสำหรับนับหมายเลขแถว
+
+    input.addEventListener('change', () => {
+      fileList.innerHTML = ''; // เคลียร์ก่อนทุกครั้งที่เลือกใหม่
+      let number = 1;
+      Array.from(input.files).forEach(file => {
+        const row = document.createElement('tr');
+        const word = document.createElement('td');
+        const rowNumber = document.createElement('td');
+        // word.className = 'file-name'; // เพิ่มคลาส CSS ถ้าต้องการ
+        row.setAttribute('data-filename', file.name);
+        // เพิ่มหมายเลขแถว
+        rowNumber.textContent = number;
+        row.appendChild(rowNumber);
+        // เพิ่ม input file name
+        word.textContent = file.name;
+        row.appendChild(word);
+        fileList.appendChild(row);
+
+        number += 1; // เพิ่มหมายเลขแถวสำหรับไฟล์ถัดไป
+      });
+    });
+
+    async function sendProcessToAi() {
+      const files = Array.from(input.files).filter(file => file.name.endsWith('.docx'));
+
+      const BATCH_SIZE = 100;
+
+      if (validate()) {
+        return;
+      }
+
+      for (let i = 0; i < files.length; i += BATCH_SIZE) {
+        const batch = files.slice(i, i + BATCH_SIZE);
+        showSpinner(); // แสดง spinner
+        // ประมวลผลไฟล์ในชุด batch พร้อมกัน แต่ไม่เกิน 5 ไฟล์
+        await Promise.all(
+          batch.map(async (file) => {
+            const reader = new FileReader();
+
+            const arrayBuffer = await new Promise((resolve, reject) => {
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsArrayBuffer(file);
+            });
+
+            try {
+              const result = await mammoth.extractRawText({ arrayBuffer });
+              let content = prompt.value + "\n\n" + result.value;
+
+              const response = await createContent(content, apiKey.value); // API call
+              // const response = await createContentByDeepSeek(content); // API call
+
+              const tr = document.querySelector(`tr[data-filename="${file.name}"]`);
+              if (tr) {
+                const newTd = document.createElement('td');
+                newTd.textContent = "เสร็จสิ้น";
+                tr.appendChild(newTd);
+                generateWord(response, file.name);
+              }
+
+            } catch (err) {
+              console.error("เกิดข้อผิดพลาดในการอ่านหรือประมวลผลไฟล์:", err);
+            }
+          })
+        );
+        hideSpinner(); // ซ่อน spinner หลังจากประมวลผลชุด batch เสร็จ
+      }
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      window.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dragFullScreen.style.display = 'flex'; // แสดงหน้าครอบเมื่อมีการลากไฟล์เข้ามา
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      window.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        if (eventName === 'dragleave' && e.relatedTarget !== null) return;
+        dragFullScreen.style.display = ''; // แสดงหน้าครอบเมื่อมีการลากไฟล์เข้ามา
+        if (eventName === 'drop') {
+          const files = Array.from(e.dataTransfer.files);
+
+          // กรองเฉพาะ .doc และ .docx
+          const wordFiles = files.filter(file => {
+            const ext = file.name.split('.').pop().toLowerCase();
+            return ext === 'doc' || ext === 'docx';
+          });
+
+          if (wordFiles.length > 0) {
+            // สร้าง DataTransfer ใหม่แล้วเพิ่มไฟล์ที่ผ่านการกรองเข้าไป
+            const dataTransfer = new DataTransfer();
+            wordFiles.forEach(file => dataTransfer.items.add(file));
+            input.files = dataTransfer.files;
+
+            fileList.innerHTML = ''; // เคลียร์ก่อนทุกครั้งที่เลือกใหม่
+            let number = 1;
+            Array.from(input.files).forEach(file => {
+              const row = document.createElement('tr');
+              const word = document.createElement('td');
+              const rowNumber = document.createElement('td');
+              // word.className = 'file-name'; // เพิ่มคลาส CSS ถ้าต้องการ
+              row.setAttribute('data-filename', file.name);
+              // เพิ่มหมายเลขแถว
+              rowNumber.textContent = number;
+              row.appendChild(rowNumber);
+              // เพิ่ม input file name
+              word.textContent = file.name;
+              row.appendChild(word);
+              fileList.appendChild(row);
+
+              number += 1; // เพิ่มหมายเลขแถวสำหรับไฟล์ถัดไป
+            });
+
+            console.log('ไฟล์ที่ผ่านการกรองแล้ว:', wordFiles);
+          } else {
+            alert("กรุณาเลือกไฟล์ .doc หรือ .docx เท่านั้น");
+          }
+        }
+      });
+    });
+
+    function validate() {
+      const files = input.files;
+
+      //================================================================
+      if (!files || files.length === 0) {
+        alert("กรุณาเลือกไฟล์ .doc หรือ .docx");
+        return true;
+      } else {
+        const allowedExtensions = ['doc', 'docx'];
+        let valid = true;
+
+        //================================================================
+        for (let i = 0; i < files.length; i++) {
+          const fileName = files[i].name;
+          const fileExtension = fileName.split('.').pop().toLowerCase();
+
+          if (!allowedExtensions.includes(fileExtension)) {
+            valid = false;
+            break;
+          }
+        }
+
+        if (!valid) {
+          alert("อนุญาตเฉพาะไฟล์ .doc และ .docx เท่านั้น");
+          return true;
+        }
+        //================================================================
+      }
+      
+      if (prompt.value.trim() === "") {
+        alert("กรุณากรอก Prompt");
+        return true;
+      }
+      
+      //================================================================
+      
+      if (apiKey.value.trim() === "") {
+        alert("กรุณากรอก Api Key");
+        return true;
+      }
+      
+
+    }
+
+  </script>
+</body>
+
+</html>
