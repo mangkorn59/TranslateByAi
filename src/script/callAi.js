@@ -1,7 +1,8 @@
 // แปลภาษาโดยใช้ Gemini
-async function createContent(content, apiKey) {
+async function createContent(content, prompt, apiKey) {
+    let contentPrompt = prompt + "\n" + content;
     var messages = [
-        { "role": "user", "content": content },
+        { "role": "user", "content": contentPrompt },
     ];
     
     // ใช้ await เพื่อรอผลลัพธ์จาก callGeminiChatApi
@@ -11,7 +12,17 @@ async function createContent(content, apiKey) {
         throw new Error("❌ callGeminiChatApi >> `ไม่สามารถใช้งาน Gemini`");
     }
 
-    return checkData;
+    const compareMessages = 
+    "ช่วยเปรียบเทียบข้อมูลจากบทความทั้งสองด้านล่างนี้ โดยบทความแรกคือบทความเก่าที่ยังไม่มีการแก้ไข และบทความที่สองคือบทความใหม่ที่มีการแก้ไขแล้ว กรุณาตรวจสอบว่าเนื้อหาในบทความใหม่มีความถูกต้อง ครบถ้วน และไม่บิดเบือนข้อมูลใด ๆ จากบทความเก่า จากนั้นให้เขียนบทความฉบับใหม่ที่รวมข้อมูลที่ถูกต้อง ครบถ้วน และไม่มีการบิดเบือน ผลลัพธ์จะต้องเป็นภาษาลาวเท่านั้น และไม่ต้องใส่คำอธิบายหรือการวิเคราะห์จาก AI ใด ๆ ทั้งสิ้น";
+    messages[0].content = compareMessages + "\n" + "บทความใหม่: " + "\n" +  checkData + "\n" + "บทความเก่า: " + "\n" + content;
+    
+    let checkCompareData = await callGeminiChatApi(messages, apiKey);
+
+    if (null === checkCompareData) {
+        throw new Error("❌ callGeminiChatApi >> `ไม่สามารถใช้งาน Gemini`");
+    }
+
+    return checkCompareData;
 }
 
 // ฟังก์ชัน callGeminiChatApi

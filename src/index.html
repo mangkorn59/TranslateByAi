@@ -242,7 +242,7 @@
     const fileList = document.getElementById('fileList');
     const dragFullScreen = document.getElementById('dragFullScreen');
     const apiKey = document.getElementById('apiKey');
-    document.getElementById('prompt').value = "แปลภาษาไทยเป็นภาษาอังกฤษ โดยเนื้อที่ให้มาจะมีแค่เนื้อหาที่แปลเท่านั้น\n";
+    document.getElementById('prompt').value = "แปลภาษาไทยเป็นภาษาลาว โดยเนื้อหาที่ให้มาจะมีแค่เนื้อหาที่แปลเท่านั้น ไม่เอาคำอธิบายจาก AI\n";
     let prompt = document.getElementById('prompt');
     // ตัวแปรสำหรับนับหมายเลขแถว
 
@@ -270,7 +270,7 @@
     async function sendProcessToAi() {
       const files = Array.from(input.files).filter(file => file.name.endsWith('.docx'));
 
-      const BATCH_SIZE = 100;
+      const BATCH_SIZE = 5;
 
       if (validate()) {
         return;
@@ -292,9 +292,8 @@
 
             try {
               const result = await mammoth.extractRawText({ arrayBuffer });
-              let content = prompt.value + "\n\n" + result.value;
 
-              const response = await createContent(content, apiKey.value); // API call
+              const response = await createContent(result.value, prompt.value, apiKey.value); // API call
               // const response = await createContentByDeepSeek(content); // API call
 
               const tr = document.querySelector(`tr[data-filename="${file.name}"]`);
